@@ -26,7 +26,6 @@ def dijkstra(origin: int, destination: int,  graph: {}) -> tuple[int, list]:
 
     #find the shortest path
     while nodes:
-        print(nodes)
         minimum = min(nodes,key=nodes.get)
         del nodes[minimum]
 
@@ -50,4 +49,4 @@ def dijkstra(origin: int, destination: int,  graph: {}) -> tuple[int, list]:
     return costs[destination], path
 
 if __name__ == '__main__':
-    dijkstra(0,4, exampleGraph)
+    print(dijkstra(0,4, exampleGraph))

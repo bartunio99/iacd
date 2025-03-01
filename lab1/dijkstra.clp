@@ -39,28 +39,50 @@
     (edge (origin E) (destination F) (value 1))    
 )
 
-
-
-;; Initialize distances
-(defrule distances
-    (declare (salience 100)) ;; High priority
-    =>
-    (assert (distance (node A) (value 0)))
-    (assert (distance (node B) (value 99999)))
-    (assert (distance (node C) (value 99999)))
-    (assert (distance (node D) (value 99999)))
-    (assert (distance (node E) (value 99999)))
-    (assert (distance (node F) (value 99999)))
+;;get start node from user
+(deffunction get-start-node()
+    (printout t "Input starting node: " crlf)
+    (return (read))
 )
 
-;; Update distances - Dijkstra's algorithm
+;;initialize distances
+(defrule initialize-distances
+    =>
+    (assert (number-of-edges 8))
+    (bind ?n (get-start-node))
+    (foreach ?f (find-all-facts ((?f node)) TRUE)
+        (bind ?name (fact-slot-value ?f name))
+        (if (neq ?name ?n) then
+            (assert (distance (node ?name) (value 99999)))
+        )
+        
+    )
+    (assert (distance (node ?n) (value 0)))
+    (assert (distances-initialized))
+)
+
 (defrule update-distances
+    ?e <- (number-of-edges ?n)
+    (distances-initialized)
     (distance (node ?n1) (value ?v1))
     (edge (origin ?n1) (destination ?n2) (value ?v2))
     ?d <- (distance (node ?n2) (value ?v3))
     (test (< (+ ?v1 ?v2) ?v3))
     =>
     (retract ?d)
+    (retract ?e)
+    (assert (number-of-edges (- ?n 1)))
     (assert (distance (node ?n2) (value (+ ?v1 ?v2))))
+
+    (if (= (- ?n 1) 0) then
+        (assert (distances-finalized))
+    )
 )
 
+(defrule print-distances
+    (distances-finalized)
+    (distance (node ?n) (value ?v))
+    =>
+    (printout t "distance to (" ?n ") is: " ?v crlf)
+)
+    

@@ -49,22 +49,6 @@
     (frame (number 10) (roll-id 15 16 17))
 )
 
-
-(deffunction calculate-frame-points ()
-    (foreach ?f (find-all-facts ((?f frame)) TRUE)
-        (bind ?rolls (fact-slot-value ?f roll-id))
-        ;;find rolls by id
-        (foreach ?roll ?rolls
-            (bind ?r (find-all-facts ((?r roll)) (eq (fact-slot-value ?r number) ?roll)))  ;;get id of rolls
-            (foreach ?roll ?r                               ;;needed because r is 1 element list ;-;
-                (bind ?points (fact-slot-value ?roll points))
-                ;;check if its strike
-                (printout t ?points crlf)
-            )
-        )
-    )
-)
-
 (defrule init
     =>
     (assert (points 0))

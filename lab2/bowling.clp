@@ -86,8 +86,8 @@
     =>
     (retract ?score)
     (retract ?processed)
-    (assert (points (+ ?sc ?p1 ?p2 ?p3)))
     (assert (roll-processed (roll-id ?id) (is-it-processed TRUE)))
+    (assert (points (+ ?sc ?p1 ?p2 ?p3)))
 )
 
 (defrule spare ;;for two
@@ -104,9 +104,9 @@
     (retract ?score)
     (retract ?processed)
     (retract ?processed2)
-    (assert (points (+ ?sc ?p1 ?p2 ?p3)))
     (assert (roll-processed (roll-id ?id1) (is-it-processed TRUE)))
     (assert (roll-processed (roll-id ?id2) (is-it-processed TRUE)))
+    (assert (points (+ ?sc ?p1 ?p2 ?p3)))
 )
 
 ;;calculate points for final frame (if it has 3 members)
@@ -124,10 +124,10 @@
     (retract ?processed)
     (retract ?processed2)
     (retract ?processed3)
-    (assert (points (+ ?sc ?p1 ?p2 ?p3)))
     (assert (roll-processed (roll-id ?id1) (is-it-processed TRUE)))
     (assert (roll-processed (roll-id ?id2) (is-it-processed TRUE)))
     (assert (roll-processed (roll-id ?id3) (is-it-processed TRUE)))
+    (assert (points (+ ?sc ?p1 ?p2 ?p3)))
 )
 
 ;;calculate points for normal frame
@@ -136,32 +136,14 @@
     ?roll <- (roll (number ?id1) (points ?p1))
     ?roll2 <- (roll (number ?id2) (points ?p2))
     ?processed <- (roll-processed (roll-id ?id1) (is-it-processed FALSE))
-    ?processed2 <- (roll-processed (roll-id ?id1) (is-it-processed FALSE))
+    ?processed2 <- (roll-processed (roll-id ?id2) (is-it-processed FALSE))
     ?score <- (points ?sc)
     (test (> 10 (+ ?p1 ?p2)))   ;;check that its not spare
     =>
     (retract ?score)
     (retract ?processed)
     (retract ?processed2)
-    (assert (points (+ ?sc ?p1 ?p2)))
     (assert (roll-processed (roll-id ?id1) (is-it-processed TRUE)))
     (assert (roll-processed (roll-id ?id2) (is-it-processed TRUE)))
+    (assert (points (+ ?sc ?p1 ?p2)))
 )
-
-
-
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-    

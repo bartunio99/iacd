@@ -1,4 +1,4 @@
-# Laboratory 2 - Bowling system
+# Laboratory 2 - Bowling and disease expert system
 
 ## Bowling
 A simple rule based program that calculates total of points gathered during game of bowling, following rules below:
@@ -8,3 +8,8 @@ A simple rule based program that calculates total of points gathered during game
 - Points - player gets one point per one knocked bowling pin
 - Strike - when player gets 10 points in first throw of a round, they get bonus points from next two rolls
 - Spare - when player gets 10 points in 2 rolls, they get bonus points from next roll
+
+## Expert system
+An expert system which task is to predict what disease a patient has, based on patient's symptoms.
+
+It's a simple "black and white" approach, system compares user's input with the symptoms from it's database and only gives answer if the 100% symptom match is achieved. 

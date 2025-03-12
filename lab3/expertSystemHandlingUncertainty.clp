@@ -1,3 +1,8 @@
+;;template for user-provided symptoms
+(deftemplate symptom
+    (slot name)
+)
+
 ;;Define prior probabilities
 (deftemplate prior-probability
     (slot name)
@@ -103,5 +108,63 @@
     (conditional-probability (disease "neumonia") (symptom "flema") (probability 0.34))
     (conditional-probability (disease "neumonia") (symptom "dificultad para respirar") (probability 0.56))
     (conditional-probability (disease "neumonia") (symptom "dolor de pecho") (probability 0.78))
+)
+
+(deffunction read-input()
+    (printout t "Please provide your symptoms: " crlf)
+    (return (readline))
+) 
+
+(deffunction explode-string (?input)
+    (bind ?result (create$))  ;; Initialize an empty multifield
+    (bind ?length (str-length ?input))  ;; Get the string length
+    (bind ?index 1)  ;; Start at index 1
+
+    (while (<= ?index ?length) do
+        (bind ?char (sub-string ?index ?index ?input))  ;; Get one character
+        (bind ?result (create$ ?result ?char))  ;; Add the character to the multifield
+        (bind ?index (+ ?index 1))
+    )  ;; Increment the index
+
+    (return ?result)
+)  ;; Return the result as a multifield
+
+(deffunction split (?input)
+    (bind ?result (create$))  ;; Initialize an empty multifield
+    (bind ?temp "")           ;; Temporary storage for word
+    (bind ?skip-first-space? TRUE)  ;; Flag to skip the first space
+
+    (foreach ?char (explode-string ?input)  ;; Iterate over characters
+        (if (and ?skip-first-space? (eq ?char " ")) then
+            ;; Skip the first space
+            (bind ?skip-first-space? FALSE)
+        else
+            (if (neq ?char ",") then
+                (bind ?temp (str-cat ?temp ?char))  ;; Append character to temp
+            else
+                (if (neq ?temp "") then
+                    (bind ?result (create$ ?result ?temp))  ;; Add temp to result
+                    (bind ?temp "")
+                    (bind ?skip-first-space? TRUE)
+                )
+            )  ;; Reset temp when a comma is found
+        )
+    )    
+   ;; Add the last collected word (if any)
+    (if (neq ?temp "") then
+        (bind ?result (create$ ?result ?temp))
+    )
+
+    (return ?result) ;; Return the result as a multifield
+)
+
+(defrule read-input
+    =>
+    (bind ?input (read-input))
+    (bind ?symptoms (split ?input))
+    (foreach ?symptom ?symptoms
+        (assert (symptom (name ?symptom)))
+    )
+    (assert (ready))
 )
 

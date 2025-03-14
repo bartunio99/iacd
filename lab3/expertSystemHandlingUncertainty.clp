@@ -1,14 +1,14 @@
 ;;template for probability of symptoms with disease
 (deftemplate prob-symptoms-disease
-    (multislot symptoms)
     (slot disease)
+    (multislot symptoms)
     (slot probability)
 )
 
 ;;template for P(S|-D)
 (deftemplate prob-symptom-no-disease
+    (slot disease)  
     (slot symptom)
-    (slot disease)
     (slot probability)
 )
 
@@ -182,17 +182,36 @@
     (assert (ready))
 )
 
-; Calculate P(S|-D)
+;;Calculate P(S|-D)
 (defrule calculate-prob-symptom-no-disease
-   ?d <- (prior-probability (name ?disease) (probability ?prior-probability)) ; Match prior-probability fact
-   ?s <- (symptom (name ?symptom)) ; Match symptom fact
-   ?c <- (conditional-probability (disease ?disease-name) (symptom ?symptom-name) (probability ?conditional-probability)) ; Match conditional-probability fact
-   (test  (and (eq ?disease ?disease-name) (eq ?symptom ?symptom-name)))
-   =>
-    
+    ?d <- (prior-probability (name ?disease) (probability ?prior-probability)) ; Match prior-probability fact
+    ?s <- (symptom (name ?symptom)) ; Match symptom fact
+    ?c <- (conditional-probability (disease ?disease-name) (symptom ?symptom-name) (probability ?conditional-probability)) ; Match conditional-probability fact
+    (test  (and (eq ?disease ?disease-name) (eq ?symptom ?symptom-name)))
+    =>
     (bind ?no-disease-probability (- 1 ?prior-probability))
     (bind ?probability (/ (* ?conditional-probability ?prior-probability) ?no-disease-probability))
-    (assert (prob-symptom-no-disease (symptom ?symptom) (disease ?disease) (probability ?probability)))
-   
+    (assert (prob-symptom-no-disease (disease ?disease) (symptom ?symptom) (probability ?probability)))  
 )
 
+;;Calculate P(S1,S2,...,Sn|D) 
+(defrule calculate-symptoms-conditional-prob
+    (ready)
+    ?prior <- (prior-probability (name ?d) (probability ?p1))   ;all for each disease
+    =>
+    (bind ?p 1)
+    (bind ?list (create$))
+    (foreach ?s (find-all-facts ((?s symptom)) TRUE)    ;loop symptoms
+        (bind ?n (fact-slot-value ?s name))
+        (foreach ?c (find-all-facts ((?c conditional-probability)) TRUE)    ;match symptoms and prob
+            (bind ?s2 (fact-slot-value ?c symptom))
+            (bind ?d2 (fact-slot-value ?c disease))
+            (if (and (eq ?n ?s2 )(eq ?d ?d2)) then
+                (bind ?p2 (fact-slot-value ?c probability))
+                (bind ?p (* ?p ?p2))
+                (bind ?list (create$ ?list ?s2))
+            )
+        )
+    )
+    (assert (prob-symptoms-disease(disease ?d) (symptoms ?list) (probability ?p)))
+)

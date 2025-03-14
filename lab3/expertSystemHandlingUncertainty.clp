@@ -1,3 +1,17 @@
+;;template for probability of symptoms with disease
+(deftemplate prob-symptoms-disease
+    (multislot symptoms)
+    (slot disease)
+    (slot probability)
+)
+
+;;template for P(S|-D)
+(deftemplate prob-symptom-no-disease
+    (slot symptom)
+    (slot disease)
+    (slot probability)
+)
+
 ;;template for user-provided symptoms
 (deftemplate symptom
     (slot name)
@@ -166,5 +180,19 @@
         (assert (symptom (name ?symptom)))
     )
     (assert (ready))
+)
+
+; Calculate P(S|-D)
+(defrule calculate-prob-symptom-no-disease
+   ?d <- (prior-probability (name ?disease) (probability ?prior-probability)) ; Match prior-probability fact
+   ?s <- (symptom (name ?symptom)) ; Match symptom fact
+   ?c <- (conditional-probability (disease ?disease-name) (symptom ?symptom-name) (probability ?conditional-probability)) ; Match conditional-probability fact
+   (test  (and (eq ?disease ?disease-name) (eq ?symptom ?symptom-name)))
+   =>
+    
+    (bind ?no-disease-probability (- 1 ?prior-probability))
+    (bind ?probability (/ (* ?conditional-probability ?prior-probability) ?no-disease-probability))
+    (assert (prob-symptom-no-disease (symptom ?symptom) (disease ?disease) (probability ?probability)))
+   
 )
 

@@ -1,2 +1,6 @@
 # Disease finding expert system
 This is a small expert, system which task is to predict the probability of user having each disease, based on their symptoms. This system implements bayes net in order to calculate compound probability of the disease based on prior probability of having it and on probability of disease developing given symptoms. It's a more complicated version of expert system from previous lab.
+
+# How it works?
+System utilizes simple bayes net, that looks like this:
+![Alt text](bayes1.jpg)

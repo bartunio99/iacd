@@ -236,6 +236,7 @@
 
 ;;Calculate final probability - P(D|S1,S2,...,Sn)
 (defrule calculate-final
+    (declare (salience 60))
     ?sym <- (symptoms-probability (symptoms $?s) (probability ?p1))
     ?pd <- (prior-probability (name ?d) (probability ?p2))
     ?ps <- (prob-symptoms-disease (disease ?d) (symptoms $?s) (probability ?p3))

@@ -3,4 +3,31 @@ This is a small expert, system which task is to predict the probability of user 
 
 # How it works?
 System utilizes simple bayes net, that looks like this:
+
 ![Alt text](bayes1.jpg)
+
+The image is a simplified version, because my system takes into consideration:
+- 6 diseases (D nodes):
+    - gripe (flu),
+    - resfriado comun (common cold),
+    - alergia (allergy),
+    - amigdalitis,
+    - bronquitis,
+    - neumonia (Pneumonia).
+- 10 symptonms (S nodes):
+    - fiebre (fever),
+    - tos (cough),
+    - dolor de garganta (sore throat),
+    - congestion nasal (nasal congestion),
+    - estornudos (sneezing),
+    - picazon en los ojos (itchy eyes),
+    - dificultad para tragar (difficulty swallowing),
+    - flema (phlegm),
+    - dificultad para respirar (difficulty breathing),
+    - dolor de pecho (chest pain).
+
+System utilizes Bayes' theorem to calculate the probability of having disease:
+$P(D|S_1,S_2,...,S_n)  = \frac{ (\sum_{i=1}^n P(S_i|D))P(D)}{P(S_1,S_2,...,S_n)}$
+
+Where:
+$P(S_1,S_2,...,S_n) = \sum_{i=1}^n P(S|D_i)P(D_i)$

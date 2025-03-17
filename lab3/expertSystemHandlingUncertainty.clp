@@ -5,9 +5,17 @@
     (slot probability)
 )
 
-;;template for P(S|-D)
-(deftemplate prob-symptom-no-disease
-    (slot disease)  
+;;template for probability of symptoms without disease
+(deftemplate prob-symptoms-no-disease
+    (slot disease)
+    (multislot symptoms)
+    (slot probability)
+)
+
+
+;;Define conditional probabilities
+(deftemplate conditional-probability
+    (slot disease)
     (slot symptom)
     (slot probability)
 )
@@ -23,6 +31,12 @@
     (slot probability)
 )
 
+;P(S1,S2,...,Sn) template
+(deftemplate symptoms-probability
+    (multislot symptoms)
+    (slot probability)
+)
+
 ;;init facts
 (deffacts init-prior
     (prior-probability (name "gripe") (probability 0.33))
@@ -33,12 +47,6 @@
     (prior-probability (name "neumonia") (probability 0.005))
 )
 
-;;Define conditional probabilities
-(deftemplate conditional-probability
-    (slot disease)
-    (slot symptom)
-    (slot probability)
-)
 
 ;;Init symptom conditional probability table - gripe
 (deffacts gripe-conditional
@@ -182,20 +190,9 @@
     (assert (ready))
 )
 
-;;Calculate P(S|-D)
-(defrule calculate-prob-symptom-no-disease
-    ?d <- (prior-probability (name ?disease) (probability ?prior-probability)) ; Match prior-probability fact
-    ?s <- (symptom (name ?symptom)) ; Match symptom fact
-    ?c <- (conditional-probability (disease ?disease-name) (symptom ?symptom-name) (probability ?conditional-probability)) ; Match conditional-probability fact
-    (test  (and (eq ?disease ?disease-name) (eq ?symptom ?symptom-name)))
-    =>
-    (bind ?no-disease-probability (- 1 ?prior-probability))
-    (bind ?probability (/ (* ?conditional-probability ?prior-probability) ?no-disease-probability))
-    (assert (prob-symptom-no-disease (disease ?disease) (symptom ?symptom) (probability ?probability)))  
-)
-
 ;;Calculate P(S1,S2,...,Sn|D) 
 (defrule calculate-symptoms-conditional-prob
+    (declare (salience 90))
     (ready)
     ?prior <- (prior-probability (name ?d) (probability ?p1))   ;all for each disease
     =>
@@ -215,3 +212,35 @@
     )
     (assert (prob-symptoms-disease(disease ?d) (symptoms ?list) (probability ?p)))
 )
+
+;;Calculate P(S1,S2,...,Sn)
+(defrule calculate-symptoms-prob
+    (declare (salience 70))
+    (ready)
+    =>
+    (bind ?probability 0)
+    (foreach ?d (find-all-facts ((?d prior-probability)) TRUE)
+        (bind ?disease (fact-slot-value ?d name))
+        (bind ?p1 (fact-slot-value ?d probability))
+        (foreach ?c (find-all-facts ((?c prob-symptoms-disease)) TRUE)
+            (bind ?disease2 (fact-slot-value ?c disease))
+            (bind ?p2 (fact-slot-value ?c probability))
+            (bind ?symptoms (fact-slot-value ?c symptoms))
+            (if (eq ?disease ?disease2) then
+                (bind ?probability (+ (* ?p1 ?p2) ?probability))  
+            )
+        )
+    )
+    (assert (symptoms-probability (symptoms ?symptoms) (probability ?probability)))
+)
+
+;;Calculate final probability - P(D|S1,S2,...,Sn)
+(defrule calculate-final
+    ?sym <- (symptoms-probability (symptoms $?s) (probability ?p1))
+    ?pd <- (prior-probability (name ?d) (probability ?p2))
+    ?ps <- (prob-symptoms-disease (disease ?d) (symptoms $?s) (probability ?p3))
+    =>
+    (bind ?p (*( / (* ?p3 ?p2) ?p1) 100))
+    (printout t ?d ": " (integer ?p) " %" crlf)
+)
+

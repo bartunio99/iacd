@@ -1,0 +1,37 @@
+(deftemplate prior-probability
+    (slot name)
+    (slot probability)
+    (slot probability-)
+)
+
+(deftemplate conditional-probability
+    (slot name)
+    (multislot conditions+)
+    (multislot conditions-)
+    (slot probability)
+)
+
+(deffacts init-probabilities
+    (prior-probability (name "CPU_Alta") (probability 0.3) (probability- 0.7))
+    (prior-probability (name "RAM_Error") (probability 0.15) (probability- 0.85))
+    (prior-probability (name "Disco_Error") (probability 0.1) (probability- 0.9))
+    (conditional-probability (name "Temp_Alta") (conditions+ "CPU_Alta") (conditions-) (probability 0.8))
+    (conditional-probability (name "Temp_Alta") (conditions+ ) (conditions- "CPU_Alta") (probability 0.1))
+    (conditional-probability (name "Reinicio") (conditions+ "RAM_Error" "Temp_Alta") (conditions- ) (probability 0.9))
+    (conditional-probability (name "Reinicio") (conditions+ "RAM_Error" ) (conditions- "Temp_Alta") (probability 0.75))
+    (conditional-probability (name "Reinicio") (conditions+  "Temp_Alta") (conditions- "RAM_Error")(probability 0.7))
+    (conditional-probability (name "Reinicio") (conditions+ ) (conditions- "RAM_Error" "Temp_Alta") (probability 0.1))
+    (conditional-probability (name "SO_Inestable") (conditions+ "CPU_Alta" "Disco_Error") (conditions- ) (probability 0.95))
+    (conditional-probability (name "SO_Inestable") (conditions+ "CPU_Alta" ) (conditions- "Disco_Error") (probability 0.9))
+    (conditional-probability (name "SO_Inestable") (conditions+  "Disco_Error") (conditions- "CPU_Alta")(probability 0.6))
+    (conditional-probability (name "SO_Inestable") (conditions+ ) (conditions- "CPU_Alta" "Disco_Error") (probability 0.2))
+    (conditional-probability (name Caida_Servidor) (conditions+ "Reinicio" "SO_Inestable" "Temp_Alta") (conditions- ) (probability 0.98))
+    (conditional-probability (name Caida_Servidor) (conditions+ "Reinicio" "SO_Inestable" ) (conditions- "Temp_Alta") (probability 0.95))
+    (conditional-probability (name Caida_Servidor) (conditions+ "Reinicio" "Temp_Alta") (conditions- "SO_Inestable") (probability 0.85))
+    (conditional-probability (name Caida_Servidor) (conditions+ "Reinicio") (conditions- "SO_Inestable" "Temp_Alta") (probability 0.75))
+    (conditional-probability (name Caida_Servidor) (conditions+ "SO_Inestable" "Temp_Alta") (conditions- "Reinicio") (probability 0.7))
+    (conditional-probability (name Caida_Servidor) (conditions+ "SO_Inestable" ) (conditions- "Reinicio" "Temp_Alta") (probability 0.5))
+    (conditional-probability (name Caida_Servidor) (conditions+  "Temp_Alta") (conditions- "Reinicio" "SO_Inestable") (probability 0.3))
+    (conditional-probability (name Caida_Servidor) (conditions+ ) (conditions- "Reinicio" "SO_Inestable" "Temp_Alta") (probability 0.01))
+)
+

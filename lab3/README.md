@@ -27,7 +27,8 @@ The image is a simplified version, because my system takes into consideration:
     - dolor de pecho (chest pain).
 
 System utilizes Bayes' theorem to calculate the probability of having disease:
-$P(D|S_1,S_2,...,S_n)  = \frac{ (\sum_{i=1}^n P(S_i|D))P(D)}{P(S_1,S_2,...,S_n)}$
+
+$$P(D|S_1,S_2,...,S_n)  = \frac{ (\sum_{i=1}^n P(S_i|D))P(D)}{P(S_1,S_2,...,S_n)}$$
 
 Where:
-$P(S_1,S_2,...,S_n) = \sum_{i=1}^n P(S|D_i)P(D_i)$
+$$P(S_1,S_2,...,S_n) = \sum_{i=1}^n P(S|D_i)P(D_i)$$

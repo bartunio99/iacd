@@ -176,50 +176,6 @@
             (assert (bonus-nodes (nodes $?new-nodes)))
     )    
 )
-
-(deffunction calculate-probability-function (?c ?s ?l)
-    (bind ?sum 0)
-    ;;all facts to loop through our sum P(A|B,C...)
-    (foreach ?probability (find-all-facts ((?probability probability)) TRUE)
-        (bind ?partial-sum 1)
-        (bind ?conditions (fact-slot-value ?probability conditions+))
-        (bind ?n-conditions (fact-slot-value ?probability conditions-))
-        (bind ?p-name (fact-slot-value ?probability name))
-        (if (and (eq ?p-name ?c) (subsetp ?s ?conditions))then
-            ;;multiply partial sum
-            (bind ?p1 (fact-slot-value ?probability probability))
-            (bind ?partial-sum (* ?partial-sum ?p1))
-            (printout t "Main fact is: " ?c "  " ?p1 ". id: " ?probability crlf)
-            
-            ;;find P(x)s needed to further operations
-            (foreach ?probability-2 (find-all-facts ((?probability-2 probability)) TRUE)
-                (bind ?p-name2 (fact-slot-value ?probability-2 name))
-                (bind ?conditions2 (fact-slot-value ?probability-2 conditions+))
-                (bind ?n-conditions2 (fact-slot-value ?probability-2 conditions-))
-                (if (member$ ?p-name2 ?l) then
-                    (if (or (neq (length$ ?conditions2) 0) (neq (length$ ?n-conditions2) 0)) then
-                        (bind ?l2 (create$ ?conditions2 ?n-conditions2))
-                        (printout t "recursion!  " ?p-name2 " " ?conditions2 " " ?n-conditions2 "..." ?l2 crlf)
-                        (bind ?p2 (calculate-probability-function ?p-name2 ?conditions ?n-conditions2))
-                        (bind ?p2 0.4395)
-                        (printout t ";-;  "  crlf)
-                    else
-                        (bind ?p2 (fact-slot-value ?probability-2 probability)))
-
-                    (if (member$ ?p-name2 ?conditions) then
-                        (bind ?partial-sum (* ?partial-sum ?p2))
-                        (printout t "Other fact is +: " ?p-name2 "  " ?p2 ", id: " ?probability-2 crlf)
-                    else 
-                        (bind ?partial-sum (* ?partial-sum (- 1 ?p2)))
-                        (printout t "Other fact is -: " ?p-name2 "  " (- 1 ?p2) ", id: " ?probability-2 crlf)
-                    )
-                )
-            )
-            (bind ?sum (+ ?sum ?partial-sum))
-        )
-    )
-    (return ?sum)
-)
 (deffunction list-subtract (?list1 ?list2)
    (bind ?result (create$))  ; Initialize result as an empty multifield
    (foreach ?item ?list1
@@ -228,6 +184,61 @@
       )
    )
    (return ?result))  ; Return the result
+
+
+(deffunction calculate-probability-function (?c ?s ?l ?n)
+    (bind ?sum 0)
+    ;;all facts to loop through our sum P(A|B,C...)
+    (foreach ?probability (find-all-facts ((?probability probability)) TRUE)
+        (bind ?partial-sum 1)
+        (bind ?conditions (fact-slot-value ?probability conditions+))
+        (bind ?n-conditions (fact-slot-value ?probability conditions-))
+        (bind ?p-name (fact-slot-value ?probability name))
+        (if (eq ?n 0) then
+            (bind ?s ?conditions)
+        )
+
+        (if (and (eq ?p-name ?c) (subsetp ?s ?conditions))then
+            ;;multiply partial sum
+            (bind ?p1 (fact-slot-value ?probability probability))
+            (bind ?partial-sum (* ?partial-sum ?p1))
+            (printout t "Main fact is: " ?c "  " ?p1 ". id: " ?probability crlf)
+            (bind ?p2 0)
+            (bind ?looped 0)
+            
+            ;;find P(x)s needed to further operations
+            (foreach ?probability-2 (find-all-facts ((?probability-2 probability)) TRUE)
+                (bind ?p-name2 (fact-slot-value ?probability-2 name))
+                (bind ?conditions2 (fact-slot-value ?probability-2 conditions+))
+                (bind ?n-conditions2 (fact-slot-value ?probability-2 conditions-))
+                (if (member$ ?p-name2 ?l) then
+                    (if (or (neq (length$ ?conditions2) 0) (neq (length$ ?n-conditions2) 0)) then
+                        (if (eq ?p2 0) then
+                            (bind ?l2 (create$ ?conditions2 ?n-conditions2))  ;;all conditions that are true
+                            (bind ?s3 (list-subtract ?l2 ?n-conditions2 ))  ;;remove symptoms that are not in the query
+                            (printout t "recursion!  " ?p-name2 " " ?conditions2 " " ?n-conditions2 "..." ?l2 crlf)
+                            (bind ?p2 (calculate-probability-function ?p-name2 ?s ?s3 0))
+                            (printout t ";-;  "  crlf)
+                        )
+                    else
+                        (bind ?p2 (fact-slot-value ?probability-2 probability)))
+                    (if (or (eq ?n 0) (and (eq ?n 1) (eq ?looped 0))) then
+                        (if (member$ ?p-name2 ?conditions) then
+                            (bind ?partial-sum (* ?partial-sum ?p2))
+                            (printout t "Other fact is +: " ?p-name2 "  " ?p2 ", id: " ?probability-2 crlf)
+                        else 
+                            (bind ?partial-sum (* ?partial-sum (- 1 ?p2)))
+                            (printout t "Other fact is -: " ?p-name2 "  " (- 1 ?p2) ", id: " ?probability-2 crlf)
+                        )
+                        (bind ?looped 1)
+                    )
+                )
+            )
+            (bind ?sum (+ ?sum ?partial-sum))           
+        )
+    )
+    (return ?sum)
+)
 
 ;P(A|B,D,C)= sum(D)(P(A|B=T,C=T,D)P(D))  (eg. if D not known)
 ;if D depends on other probabilities it also needs to be considered
@@ -242,7 +253,12 @@
     (bind ?conditions (create$ ?s2 ?n))  ;;all conditions that are true
     (bind ?s3 (list-subtract ?conditions ?s1 ))  ;;remove symptoms that are not in the query
     (printout t ?c " " ?s1 " " ?s3 crlf)
-    (bind ?result (calculate-probability-function ?c ?s1 ?s3))
+    (if (eq ?c "Caida_Servidor") then
+        (bind ?var 1)
+    else
+        (bind ?var 0)
+    )
+    (bind ?result (calculate-probability-function ?c ?s1 ?s3 ?var))
     (printout t "answer is: " ?result crlf)
     (retract ?ready)
 )

@@ -16,11 +16,6 @@
     (multislot parents)
 )
 
-;joint probability
-(deftemplate joint-probability
-    (slot probability)
-)
-
 ;;template for user-provided failure causes
 (deftemplate cause
     (slot cause)
@@ -30,6 +25,12 @@
 (deftemplate symptoms
     (multislot symptoms)
 )
+
+;;template for additional nodes
+(deftemplate bonus-nodes
+    (multislot nodes)
+)
+
 
 (deffacts init-probabilities
     (probability (name "CPU_Alta") (conditions+) (conditions-) (probability 0.3))
@@ -53,7 +54,6 @@
     (probability (name "Caida_Servidor") (conditions+ "SO_Inestable" ) (conditions- "Reinicio" "Temp_Alta") (probability 0.5))
     (probability (name "Caida_Servidor") (conditions+  "Temp_Alta") (conditions- "Reinicio" "SO_Inestable") (probability 0.3))
     (probability (name "Caida_Servidor") (conditions+ ) (conditions- "Reinicio" "SO_Inestable" "Temp_Alta") (probability 0.01))
-    (joint-probability (probability (* 0.98 0.95 0.9 0.8 0.15 0.3)))
 )
 
 (defrule init-graph
@@ -65,7 +65,7 @@
     (assert (node (name "Temp_Alta") (parents "CPU_Alta")))
     (assert (node (name "Reinicio") (parents "RAM_Error")))
     (assert (node (name "Caida_Servidor") (parents "Reinicio" "SO_Inestable" "Temp_Alta")))
-    (assert (final-probability (value 0)))
+    (assert (bonus-nodes (nodes (create$))))
     (assert (ready))
 )
 
@@ -133,10 +133,11 @@
     (assert (symptoms (symptoms ?list)))
 )
 
-(defrule calculate-probability-1    ;;when all substrates are know - just read from table
+(defrule calculate-probability-1    ;;basic case, all of parents of cause node are present in query
     (ready)
     ?probability <- (probability (name ?n) (conditions+ $?condp) (conditions- $?condn) (probability ?p))
     ?symptoms <- (symptoms(symptoms $?s))
+    ?cause <- (cause(cause ?n))
     ?node <- (node (name ?n) (parents $?condp))
     (test (and 
         (subsetp ?condp ?s)  ; All elements of ?mf1 exist in ?mf2
@@ -147,39 +148,101 @@
     (printout t "Probability of happening is: " ?p crlf)
 )
 
-;;calculates partia probability for each node of query
-;;P(A) = SUM(P(A|Xi)*P(Xi)) (sum for booolean values of Xi)
-
-;;eg. P(C|R,T) = sum{S} P(C|R,T,S)*P(S)
-    ;;P(S) = sum{CPU,D} P(S|CPU,D)*P(CPU,D)
-(defrule calculate-probability-2    ;;if its a cause
-    ?final-p <- (final-probability (value ?p1))
+;;add bonus nodes for cause node if needed
+(defrule add-nodes-cause
+    (ready)
+    ?bonus <- (bonus-nodes (nodes $?x))
     ?probability <- (probability (name ?n) (conditions+ $?condp) (conditions- $?condn) (probability ?p))
     ?symptoms <- (symptoms(symptoms $?s))
-    ?cause <- (cause (cause ?n))
-    ?node <- (node (name ?n) (parents $?par))
-    (test (neq ?condp ?par))
+    ?cause <- (cause(cause ?n))
+    (test (and 
+        (subsetp ?condn ?s)  ; All elements of ?mf1 exist in ?mf2
+        (subsetp ?s ?condn)  ; All elements of ?mf2 exist in ?mf1
+        (eq (length$ ?condn) (length$ ?s))  ; Ensure same number of elements
+      ))
     =>
-    (printout t ?p crlf)
-    (bind ?prob (calculate-recursive-call ?p ?n ?s))
+    (bind ?new-nodes $?x)
+
+    ;; Only add new nodes if they aren't already in the list
+    (foreach ?node $?condp
+        (if (not (member$ ?node $?x)) then ; Check if the node is not already in the list
+            (bind ?new-nodes (create$ $?new-nodes ?node))
+        )
+    )
+    ;; If new nodes were added, update bonus-nodes
+    (if (neq (length$ ?new-nodes) (length$ $?x))  ;; Check if nodes were added
+        then
+            (retract ?bonus)
+            (assert (bonus-nodes (nodes $?new-nodes)))
+    )    
 )
 
-;;eg. P(C|R,T) = sum{S} P(C|R,T,S)*P(S)
-    ;;P(S) = sum{CPU,D} P(S|CPU,D)*P(CPU,D)
-(deffunction calculate-recursive-call (?p ?n ?s)    ;;probability, node, symptoms
-    (bind ?probability 0)
-    (if (neq (length$ ?n:parents) 0) then ;;if node has parents, need to check which of them are included in symptoms
-        ;;need to loop through all facts that are not symptoms and are parents of current node
-        (foreach ?f (find-all-facts (?f probability)) (and (member$ ?f:name ?n:parents) (not (member$ ?f:name ?s:symptoms)))
-            (if (and (member$ ?f:name ?n:parents) 
-            (not (member$ ?f:name ?s:symptoms))) then
-            ;;find corresponding node fact
-                (foreach ?n2 (find-all-facts (?n2 node)) (eq (?f:name ?n2:name)))
-                    (bind ?probability (+ (* (calculate-recursive-call ?f ?n2 ?s) ?f:probability) ?partial-sum))
+(deffunction calculate-probability-function (?c ?s ?l)
+    (bind ?sum 0)
+    ;;all facts to loop through our sum P(A|B,C...)
+    (foreach ?probability (find-all-facts ((?probability probability)) TRUE)
+        (bind ?partial-sum 1)
+        (bind ?conditions (fact-slot-value ?probability conditions+))
+        (bind ?n-conditions (fact-slot-value ?probability conditions-))
+        (bind ?p-name (fact-slot-value ?probability name))
+        (if (and (eq ?p-name ?c) (subsetp ?s ?conditions))then
+            ;;multiply partial sum
+            (bind ?p1 (fact-slot-value ?probability probability))
+            (bind ?partial-sum (* ?partial-sum ?p1))
+            (printout t "Main fact is: " ?c "  " ?p1 ". id: " ?probability crlf)
+            
+            ;;find P(x)s needed to further operations
+            (foreach ?probability-2 (find-all-facts ((?probability-2 probability)) TRUE)
+                (bind ?p-name2 (fact-slot-value ?probability-2 name))
+                (bind ?conditions2 (fact-slot-value ?probability-2 conditions+))
+                (bind ?n-conditions2 (fact-slot-value ?probability-2 conditions-))
+                (if (member$ ?p-name2 ?l) then
+                    (if (or (neq (length$ ?conditions2) 0) (neq (length$ ?n-conditions2) 0)) then
+                        (bind ?l2 (create$ ?conditions2 ?n-conditions2))
+                        (printout t "recursion!  " ?p-name2 " " ?conditions2 " " ?n-conditions2 "..." ?l2 crlf)
+                        (bind ?p2 (calculate-probability-function ?p-name2 ?conditions ?n-conditions2))
+                        (bind ?p2 0.4395)
+                        (printout t ";-;  "  crlf)
+                    else
+                        (bind ?p2 (fact-slot-value ?probability-2 probability)))
+
+                    (if (member$ ?p-name2 ?conditions) then
+                        (bind ?partial-sum (* ?partial-sum ?p2))
+                        (printout t "Other fact is +: " ?p-name2 "  " ?p2 ", id: " ?probability-2 crlf)
+                    else 
+                        (bind ?partial-sum (* ?partial-sum (- 1 ?p2)))
+                        (printout t "Other fact is -: " ?p-name2 "  " (- 1 ?p2) ", id: " ?probability-2 crlf)
+                    )
+                )
             )
+            (bind ?sum (+ ?sum ?partial-sum))
         )
-    (return ?probability)           
-    else
-        (return ?p:probability)
-    )   
+    )
+    (return ?sum)
+)
+(deffunction list-subtract (?list1 ?list2)
+   (bind ?result (create$))  ; Initialize result as an empty multifield
+   (foreach ?item ?list1
+      (if (not (member$ ?item ?list2)) then
+         (bind ?result (insert$ ?result (+ (length$ ?result) 1) ?item))  ; Insert at the correct index
+      )
+   )
+   (return ?result))  ; Return the result
+
+;P(A|B,D,C)= sum(D)(P(A|B=T,C=T,D)P(D))  (eg. if D not known)
+;if D depends on other probabilities it also needs to be considered
+(defrule calculate-probability
+    ?ready <- (ready)
+    ?cause <- (cause (cause ?c))
+    ?bonus <- (bonus-nodes (nodes $?b))
+    ?symptoms <- (symptoms (symptoms $?s1))
+    ?probability <- (probability (name ?c) (conditions+ $?s2) (conditions- $?n) (probability ?p))    ;;the base probability, we will through ?n symptoms
+    (test (neq (length$ ?b) 0))  ;; bonus-nodes is not empty
+    =>
+    (bind ?conditions (create$ ?s2 ?n))  ;;all conditions that are true
+    (bind ?s3 (list-subtract ?conditions ?s1 ))  ;;remove symptoms that are not in the query
+    (printout t ?c " " ?s1 " " ?s3 crlf)
+    (bind ?result (calculate-probability-function ?c ?s1 ?s3))
+    (printout t "answer is: " ?result crlf)
+    (retract ?ready)
 )
